@@ -3,6 +3,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
+def read_date(s):
+    
+    splitted = s.split('/')
+    ano = splitted[2]
+    mes = splitted[1]
+    anomes = int(ano+mes)
+
+    return anomes
+
 def create_dic(lines):
 
     use_lines = lines[4:8]
@@ -62,8 +71,30 @@ class Estacoes:
         self.base = base
         self.estacao_lts = estacao_lts
 
+        #datas da base
+        todas = np.concatenate([e.data['Data'].values for e in estacao_lts])
+        todas = np.concatenate([base.data['Data'].values, todas])
+        todas = np.array([read_date(t) for t in todas])
+        todas = np.unique(todas)
+        todas = np.sort(todas)
+
+        datavazao = pd.DataFrame()
+        datavazao['Data'] = todas
+
+        #preenchendo vazoes
+        estacoes = estacao_lts
+        estacoes.append(base)
+
+        for idx, row in datavazao.iterrows():
+            for e in estacoes:
+                datavazao[e.code] = float('nan')
+                anomes = read_date(e.data['Data'])
+
+                for idxe, value in enumerate(anomes):
+                    pass
+
+
     def disponibilidade():
-        
         
         fig, ax = plt.subplots()
 
