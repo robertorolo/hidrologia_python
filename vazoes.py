@@ -1,6 +1,7 @@
 from io import StringIO 
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 
 def anomes_trans(s):
@@ -121,10 +122,18 @@ class Estacao:
         
 class Estacoes:
 
-    def __init__(self, base, estacao_lts):
+    def __init__(self, base, estacao_lts, consistencia='Consistido'):
 
         print('Inicializando objeto Estacoes...')
         
+        if consistencia == 'Consistido':
+            f = base.data['NivelConsistencia'] == 'Consistido'
+            base.data = base.data[f]
+
+            for e in estacao_lts:
+                f = e.data['NivelConsistencia'] == 'Consistido'
+                e.data = e.data[f]
+
         self.base = base
         self.estacao_lts = estacao_lts
 
@@ -166,19 +175,72 @@ class Estacoes:
         self.vazao_df = vazao_df
 
         print('Feito!')
+    
+    def boxplot(self):
+        
+        df = self.vazao_df.drop(columns=['Data'])
+        df.boxplot()
+        plt.savefig('boxplot.png', dpi=300, facecolor='white', bbox_inches='tight')
         
     def correlacao(self):
 
-        pass
+        df = self.vazao_df.drop(columns=['Data'])
+        #df = df.dropna()
+        correlation_mat = df.corr()
+        sns_heatmap = sns.heatmap(correlation_mat, annot = True, cmap="viridis")
+        plt.yticks(rotation=0)
+        fig = sns_heatmap.get_figure()
+        fig.savefig('corrmat.png', dpi=300, facecolor='white', bbox_inches='tight')
+         
+    def hidrograma(self, estacoes=None, qmax=None, largura=30):
     
-    def hidrograma(self):
+        if estacoes == None:
+            estacoes = [i.codigo for i in self.df_lista]
+        else:
+            estacoes = estacoes
+            
+        datas = self.vazao_df['Data'].values
+        x = [i for i in range(len(datas))]
+        ticksvals = []
+        tickslabel = []
         
-        fig, ax = plt.subplots()
-
-        for i in self.df_lista:
-            ax.plot([i for i in range(len(self.vazao_df))], self.vazao_df[i.codigo], label=i.codigo)  
-
-        plt.grid(linestyle='--')
-        plt.legend()
-        plt.show()     
+        for idx in range(0, len(datas), 365):
+            ticksvals.append(x[idx])
+            tickslabel.append(datas[idx])
+                    
+        fig, axs = plt.subplots(2, 1, figsize=(largura,5), sharex=True, gridspec_kw={'height_ratios':[5,1]})
+        
+        yticksvals = []
+        ytickslabel = []
+            
+        maxy = 0
+        for idx, i in enumerate(estacoes):
+            y = self.vazao_df[i]
+            axs[0].plot(x, y, label=i, linewidth=0.3)
+            if np.max(y) > maxy:
+                maxy = np.max(y)
+            
+            filtro = np.where(np.isfinite(y) == True, idx+1, float('nan'))
+            axs[1].plot(x, filtro, linewidth=5)
+            yticksvals.append(idx+1)
+            ytickslabel.append(i)
+                
+        axs[0].grid(linestyle='--')
+        axs[0].set_title('Hidrograma')
+        axs[0].set_xticks(ticksvals) 
+        axs[1].set_xticklabels(tickslabel, fontsize=6, rotation='vertical')
+        axs[0].set_xlim([0,np.max(x)])
+        axs[0].set_ylim([0, maxy]) if qmax is None else axs[0].set_ylim([0, qmax])
+        axs[0].set_ylabel('Vazão (m³/s)')
+        axs[0].legend()
+        
+        axs[1].set_title('Disponibilidade')
+        axs[1].set_yticks(yticksvals) 
+        axs[1].set_yticklabels(ytickslabel)
+        axs[1].set_ylim([yticksvals[0]-0.5, yticksvals[-1]+0.5])
+        
+        plt.tight_layout()
+        #plt.show()
+        plt.savefig('hidrograma.png', dpi=300, facecolor='white', bbox_inches='tight')
+        
 
